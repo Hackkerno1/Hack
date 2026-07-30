@@ -1,15 +1,19 @@
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
+-- ชื่อไฟล์สำหรับเซฟข้อมูลเก็บไว้ในเครื่อง
+local fileName = "ChumTangSue_UltimateTeleport.json"
+
 -- ป้องกันเปิดซ้ำ
-if CoreGui:FindFirstChild("UndergroundTeleportSafeGui") then
-    CoreGui.UndergroundTeleportSafeGui:Destroy()
+if CoreGui:FindFirstChild("UltimateTeleportGui") then
+    CoreGui.UltimateTeleportGui:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UndergroundTeleportSafeGui"
+ScreenGui.Name = "UltimateTeleportGui"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
@@ -36,9 +40,9 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 0, 25)
 Title.Position = UDim2.new(0, 15, 0, 5)
 Title.BackgroundTransparency = 1
-Title.Text = "🕳️ ระบบมุดดิน (ซ่อนมิดชิด ไม่โผล่)"
+Title.Text = "🚀 ระบบมุดดิน + เซฟถาวร (5 ช่อง)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 14
+Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Frame
@@ -54,7 +58,7 @@ SubTitle.Font = Enum.Font.Gotham
 SubTitle.TextXAlignment = Enum.TextXAlignment.Left
 SubTitle.Parent = Frame
 
--- หน้าต่างแจ้งเตือนสถานะใต้ดิน
+-- หน้าต่างแจ้งเตือนสถานะใต้ดิน (Pop-up)
 local UnderPanel = Instance.new("Frame")
 UnderPanel.Size = UDim2.new(0, 280, 0, 75)
 UnderPanel.Position = UDim2.new(0.5, -140, 0.82, 0)
@@ -76,7 +80,7 @@ local UnderText = Instance.new("TextLabel")
 UnderText.Size = UDim2.new(1, -20, 0, 25)
 UnderText.Position = UDim2.new(0, 10, 0, 5)
 UnderText.BackgroundTransparency = 1
-UnderText.Text = "⚠️ ซ่อนตัวใต้ดินลึก (หัวและชื่อไม่โผล่)"
+UnderText.Text = "⚠️ หลบซ่อนใต้ดินลึก 9 เมตร (มิดชิด)"
 UnderText.TextColor3 = Color3.fromRGB(255, 200, 100)
 UnderText.TextSize = 12
 UnderText.Font = Enum.Font.GothamBold
@@ -97,8 +101,38 @@ local SurfaceCorner = Instance.new("UICorner")
 SurfaceCorner.CornerRadius = UDim.new(0, 6)
 SurfaceCorner.Parent = SurfaceBtn
 
+-- ฟังก์ชันโหลดข้อมูลเก่าจากไฟล์
+local function loadFromFile()
+    if isfile and isfile(fileName) and readfile then
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(readfile(fileName))
+        end)
+        if success and result then
+            return result
+        end
+    end
+    return {}
+end
+
 local savedData = {}
 local activeTargetCFrame = nil
+local loadedData = loadFromFile()
+
+-- ฟังก์ชันบันทึกข้อมูลลงไฟล์
+local function saveToFile()
+    if writefile then
+        local dataToSave = {}
+        for i = 1, 5 do
+            if savedData[i] then
+                dataToSave[tostring(i)] = {
+                    name = savedData[i].name,
+                    cf = savedData[i].cframe and {savedData[i].cframe:GetComponents()} or nil
+                }
+            end
+        end
+        writefile(fileName, HttpService:JSONEncode(dataToSave))
+    end
+end
 
 local function createSlot(index, yPos)
     local slotFrame = Instance.new("Frame")
@@ -165,20 +199,47 @@ local function createSlot(index, yPos)
 
     savedData[index] = {
         cframe = nil,
+        name = "จุดที่ " .. index,
         countLabel = countLabel,
         tpBtn = tpBtn
     }
 
+    -- โหลดข้อมูลที่เคยเซฟไว้ในไฟล์คอมพิวเตอร์
+    local slotKey = tostring(index)
+    if loadedData[slotKey] then
+        if loadedData[slotKey].name then
+            savedData[index].name = loadedData[slotKey].name
+            nameBox.Text = loadedData[slotKey].name
+        end
+        if loadedData[slotKey].cf then
+            savedData[index].cframe = CFrame.new(unpack(loadedData[slotKey].cf))
+            tpBtn.BackgroundColor3 = Color3.fromRGB(220, 140, 50)
+            tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            countLabel.Text = "สถานะ: ปลอดภัย (0 คน)"
+            countLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        end
+    end
+
+    -- เมื่อพิมพ์เปลี่ยนชื่อแล้วกดคลิกออก (FocusLost) ให้เซฟทันที
+    nameBox.FocusLost:Connect(function()
+        savedData[index].name = nameBox.Text
+        saveToFile()
+    end)
+
+    -- กดปุ่มบันทึกตำแหน่ง
     saveBtn.MouseButton1Click:Connect(function()
         local char = player.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
             savedData[index].cframe = char.HumanoidRootPart.CFrame
             tpBtn.BackgroundColor3 = Color3.fromRGB(220, 140, 50)
             tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            countLabel.Text = "สถานะ: ปลอดภัย (0 คน)"
+            countLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            saveToFile()
         end
     end)
 
-    -- กดปุ่มมุดดิน (เพิ่มความลึกเป็น 9 เมตร ป้องกันหัวและชื่อโผล่ และตรึงพิกัด)
+    -- กดปุ่มมุดดิน (ตรึงพิกัด + ลงไป 9 เมตรใต้จุดที่เซฟ)
     tpBtn.MouseButton1Click:Connect(function()
         if savedData[index].cframe then
             local char = player.Character
@@ -187,9 +248,7 @@ local function createSlot(index, yPos)
                 local rootPart = char.HumanoidRootPart
                 
                 rootPart.Anchored = true
-                -- ปรับมุดลงไปลึก 9 เมตร เพื่อซ่อนหัวและป้ายชื่อไม่ให้โผล่พ้นพื้น
                 rootPart.CFrame = savedData[index].cframe - Vector3.new(0, 9, 0)
-                
                 UnderPanel.Visible = true
             end
         end
@@ -213,7 +272,7 @@ SurfaceBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ลูปเช็กจำนวนคนรอบจุด
+-- ลูปเช็กจำนวนคนรอบจุดแบบเรียลไทม์
 RunService.RenderStepped:Connect(function()
     for index, data in pairs(savedData) do
         if data.cframe then
