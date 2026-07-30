@@ -1,1 +1,245 @@
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
 
+-- ป้องกันเปิดซ้ำ
+if CoreGui:FindFirstChild("UndergroundTeleportSafeGui") then
+    CoreGui.UndergroundTeleportSafeGui:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UndergroundTeleportSafeGui"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+-- กรอบหลัก UI
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 310, 0, 310)
+Frame.Position = UDim2.new(0.5, -155, 0.15, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = Frame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60, 60, 80)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = Frame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -20, 0, 25)
+Title.Position = UDim2.new(0, 15, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "🕳️ ระบบมุดดิน (ซ่อนมิดชิด ไม่โผล่)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Frame
+
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Size = UDim2.new(1, -20, 0, 15)
+SubTitle.Position = UDim2.new(0, 15, 0, 23)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "ชุมทางเสือ"
+SubTitle.TextColor3 = Color3.fromRGB(150, 150, 170)
+SubTitle.TextSize = 11
+SubTitle.Font = Enum.Font.Gotham
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = Frame
+
+-- หน้าต่างแจ้งเตือนสถานะใต้ดิน
+local UnderPanel = Instance.new("Frame")
+UnderPanel.Size = UDim2.new(0, 280, 0, 75)
+UnderPanel.Position = UDim2.new(0.5, -140, 0.82, 0)
+UnderPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 20)
+UnderPanel.BorderSizePixel = 0
+UnderPanel.Visible = false
+UnderPanel.Parent = ScreenGui
+
+local UnderCorner = Instance.new("UICorner")
+UnderCorner.CornerRadius = UDim.new(0, 10)
+UnderCorner.Parent = UnderPanel
+
+local UnderStroke = Instance.new("UIStroke")
+UnderStroke.Color = Color3.fromRGB(255, 165, 0)
+UnderStroke.Thickness = 1.5
+UnderStroke.Parent = UnderPanel
+
+local UnderText = Instance.new("TextLabel")
+UnderText.Size = UDim2.new(1, -20, 0, 25)
+UnderText.Position = UDim2.new(0, 10, 0, 5)
+UnderText.BackgroundTransparency = 1
+UnderText.Text = "⚠️ ซ่อนตัวใต้ดินลึก (หัวและชื่อไม่โผล่)"
+UnderText.TextColor3 = Color3.fromRGB(255, 200, 100)
+UnderText.TextSize = 12
+UnderText.Font = Enum.Font.GothamBold
+UnderText.TextXAlignment = Enum.TextXAlignment.Left
+UnderText.Parent = UnderPanel
+
+local SurfaceBtn = Instance.new("TextButton")
+SurfaceBtn.Size = UDim2.new(1, -20, 0, 32)
+SurfaceBtn.Position = UDim2.new(0, 10, 0, 35)
+SurfaceBtn.BackgroundColor3 = Color3.fromRGB(230, 140, 0)
+SurfaceBtn.Text = "⬆️ ขึ้นสู่ผิวดิน (โผล่ขึ้นไปจุดที่เซฟ)"
+SurfaceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SurfaceBtn.TextSize = 12
+SurfaceBtn.Font = Enum.Font.GothamBold
+SurfaceBtn.Parent = UnderPanel
+
+local SurfaceCorner = Instance.new("UICorner")
+SurfaceCorner.CornerRadius = UDim.new(0, 6)
+SurfaceCorner.Parent = SurfaceBtn
+
+local savedData = {}
+local activeTargetCFrame = nil
+
+local function createSlot(index, yPos)
+    local slotFrame = Instance.new("Frame")
+    slotFrame.Size = UDim2.new(1, -30, 0, 42)
+    slotFrame.Position = UDim2.new(0, 15, 0, yPos)
+    slotFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    slotFrame.BorderSizePixel = 0
+    slotFrame.Parent = Frame
+
+    local slotCorner = Instance.new("UICorner")
+    slotCorner.CornerRadius = UDim.new(0, 8)
+    slotCorner.Parent = slotFrame
+
+    local nameBox = Instance.new("TextBox")
+    nameBox.Size = UDim2.new(0, 85, 0, 20)
+    nameBox.Position = UDim2.new(0, 8, 0, 2)
+    nameBox.BackgroundTransparency = 1
+    nameBox.Text = "จุดที่ " .. index
+    nameBox.TextColor3 = Color3.fromRGB(220, 220, 220)
+    nameBox.TextSize = 12
+    nameBox.Font = Enum.Font.GothamBold
+    nameBox.TextXAlignment = Enum.TextXAlignment.Left
+    nameBox.ClearTextOnFocus = false
+    nameBox.Parent = slotFrame
+
+    local countLabel = Instance.new("TextLabel")
+    countLabel.Size = UDim2.new(0, 85, 0, 16)
+    countLabel.Position = UDim2.new(0, 8, 0, 22)
+    countLabel.BackgroundTransparency = 1
+    countLabel.Text = "สถานะ: ยังไม่เซฟ"
+    countLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    countLabel.TextSize = 10
+    countLabel.Font = Enum.Font.Gotham
+    countLabel.TextXAlignment = Enum.TextXAlignment.Left
+    countLabel.Parent = slotFrame
+
+    local saveBtn = Instance.new("TextButton")
+    saveBtn.Size = UDim2.new(0, 52, 0, 28)
+    saveBtn.Position = UDim2.new(0, 98, 0, 7)
+    saveBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 220)
+    saveBtn.Text = "บันทึก"
+    saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    saveBtn.TextSize = 12
+    saveBtn.Font = Enum.Font.GothamBold
+    saveBtn.Parent = slotFrame
+
+    local saveCorner = Instance.new("UICorner")
+    saveCorner.CornerRadius = UDim.new(0, 6)
+    saveCorner.Parent = saveBtn
+
+    local tpBtn = Instance.new("TextButton")
+    tpBtn.Size = UDim2.new(0, 52, 0, 28)
+    tpBtn.Position = UDim2.new(0, 155, 0, 7)
+    tpBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 90)
+    tpBtn.Text = "มุดดิน"
+    tpBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    tpBtn.TextSize = 12
+    tpBtn.Font = Enum.Font.GothamBold
+    tpBtn.Parent = slotFrame
+
+    local tpCorner = Instance.new("UICorner")
+    tpCorner.CornerRadius = UDim.new(0, 6)
+    tpCorner.Parent = tpBtn
+
+    savedData[index] = {
+        cframe = nil,
+        countLabel = countLabel,
+        tpBtn = tpBtn
+    }
+
+    saveBtn.MouseButton1Click:Connect(function()
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            savedData[index].cframe = char.HumanoidRootPart.CFrame
+            tpBtn.BackgroundColor3 = Color3.fromRGB(220, 140, 50)
+            tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end
+    end)
+
+    -- กดปุ่มมุดดิน (เพิ่มความลึกเป็น 9 เมตร ป้องกันหัวและชื่อโผล่ และตรึงพิกัด)
+    tpBtn.MouseButton1Click:Connect(function()
+        if savedData[index].cframe then
+            local char = player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                activeTargetCFrame = savedData[index].cframe
+                local rootPart = char.HumanoidRootPart
+                
+                rootPart.Anchored = true
+                -- ปรับมุดลงไปลึก 9 เมตร เพื่อซ่อนหัวและป้ายชื่อไม่ให้โผล่พ้นพื้น
+                rootPart.CFrame = savedData[index].cframe - Vector3.new(0, 9, 0)
+                
+                UnderPanel.Visible = true
+            end
+        end
+    end)
+end
+
+for i = 1, 5 do
+    createSlot(i, 42 + (i * 48))
+end
+
+-- ปุ่มกดปลดล็อกและโผล่ขึ้นสู่ผิวดิน
+SurfaceBtn.MouseButton1Click:Connect(function()
+    if activeTargetCFrame then
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local rootPart = char.HumanoidRootPart
+            rootPart.Anchored = false
+            rootPart.CFrame = activeTargetCFrame
+            UnderPanel.Visible = false
+        end
+    end
+end)
+
+-- ลูปเช็กจำนวนคนรอบจุด
+RunService.RenderStepped:Connect(function()
+    for index, data in pairs(savedData) do
+        if data.cframe then
+            local targetPos = data.cframe.Position
+            local peopleNearby = 0
+            
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player then
+                    local char = p.Character
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local dist = (root.Position - targetPos).Magnitude
+                        if dist <= 20 then
+                            peopleNearby = peopleNearby + 1
+                        end
+                    end
+                end
+            end
+            
+            if peopleNearby == 0 then
+                data.countLabel.Text = "สถานะ: ปลอดภัย (0 คน)"
+                data.countLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            else
+                data.countLabel.Text = "⚠️ มีคนใกล้ๆ: " .. peopleNearby .. " คน!"
+                data.countLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            end
+        end
+    end
+end)
