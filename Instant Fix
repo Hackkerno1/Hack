@@ -1,0 +1,125 @@
+local CoreGui = game:GetService("CoreGui")
+
+if CoreGui:FindFirstChild("PromptToggleGui") then
+    CoreGui.PromptToggleGui:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PromptToggleGui"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+-- กรอบหลัก (ดีไซน์มืดทันสมัย)
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 220, 0, 115)
+Frame.Position = UDim2.new(0.5, -110, 0.15, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = Frame
+
+-- เส้นขอบ UI
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60, 60, 80)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = Frame
+
+-- ชื่อหัวข้อ
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -20, 0, 35)
+Title.Position = UDim2.new(0, 15, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "⚡ Instant Prompt"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 15
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Frame
+
+-- ชื่อแมพย่อย
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Size = UDim2.new(1, -20, 0, 15)
+SubTitle.Position = UDim2.new(0, 15, 0, 28)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "ชุมทางเสือ"
+SubTitle.TextColor3 = Color3.fromRGB(150, 150, 170)
+SubTitle.TextSize = 11
+SubTitle.Font = Enum.Font.Gotham
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = Frame
+
+-- กล่องสถานะ (Status Badge)
+local StatusFrame = Instance.new("Frame")
+StatusFrame.Size = UDim2.new(0, 75, 0, 22)
+StatusFrame.Position = UDim2.new(1, -90, 0, 12)
+StatusFrame.BackgroundColor3 = Color3.fromRGB(50, 30, 30)
+StatusFrame.BorderSizePixel = 0
+StatusFrame.Parent = Frame
+
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 6)
+StatusCorner.Parent = StatusFrame
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 1, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "OFF"
+StatusLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
+StatusLabel.TextSize = 11
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.Parent = StatusFrame
+
+-- ปุ่มเปิด-ปิด
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, -30, 0, 38)
+ToggleButton.Position = UDim2.new(0, 15, 0, 62)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(230, 60, 60)
+ToggleButton.Text = "เปิดใช้งาน"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 14
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Parent = Frame
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 8)
+ButtonCorner.Parent = ToggleButton
+
+local originalDurations = {}
+local isEnabled = false
+
+ToggleButton.MouseButton1Click:Connect(function()
+    isEnabled = not isEnabled
+    if isEnabled then
+        StatusLabel.Text = "ON"
+        StatusLabel.TextColor3 = Color3.fromRGB(90, 255, 120)
+        StatusFrame.BackgroundColor3 = Color3.fromRGB(20, 50, 30)
+        ToggleButton.Text = "ปิดใช้งาน"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 205, 90)
+        
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                if originalDurations[v] == nil then
+                    originalDurations[v] = v.HoldDuration
+                end
+                v.HoldDuration = 0
+            end
+        end
+    else
+        StatusLabel.Text = "OFF"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
+        StatusFrame.BackgroundColor3 = Color3.fromRGB(50, 30, 30)
+        ToggleButton.Text = "เปิดใช้งาน"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(230, 60, 60)
+        
+        for v, duration in pairs(originalDurations) do
+            if v and v.Parent then
+                v.HoldDuration = duration
+            end
+        end
+    end
+end)
